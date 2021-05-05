@@ -1,0 +1,112 @@
+// wave.h "Функции работы с wave-файлом" 
+#ifndef WAVE_H
+#define WAVE_H
+
+#include <vcl.h>
+#include <mmsystem.h>
+#include <stdio.h>
+#include <math.h>
+
+void Write16BitsLowHigh(FILE *fp, int i);   // Запись 2 байт
+void Write32BitsLowHigh(FILE *fp, int i);   // Запись 4 байт
+// Проверка присутствия строки str в файле fp
+void CheckString(FILE *fp,char *str) throw(Exception);
+double ToLog(double v);     // Перевод в логарифмический масштаб
+void ErrorMessage(AnsiString message);  // выдача сообщения об ошибке
+TColor ToRGB(int c);    // перевод интенсивности 0..255 в TColor
+
+// Описание звукового файла
+class TWave {
+public:
+    int  Channels;		    // число каналов (моно/стерео)
+    int  Bits;			    // разрядность
+    long SampleRate;	    // частота дискретизации
+    long TotalSamples;	    // размер в сэмплах
+    long Length;		    // размер в секундах
+    char Name[50];          // имя файла
+    char Description[256];  // описание
+    FILE *fp;               // указатель на файл
+    bool ForWriting;        // создаем для вывода звука
+
+    // Создается файл для записи
+    TWave(char *name,int  channels,int  bits,long samplerate);
+	// Открывается файл
+    TWave(char *name);
+    ~TWave();
+    // Закрытие файла
+	void 	Close();
+    // Читаем с сэмпла sfirst данные размером samples в буфер buffer
+    // Возвращает true в случае прочтения буфера
+	bool GetData(long pos,short *buffer,int samples);
+    // Записывает буфер в файл
+    void WriteData(short *buffer,unsigned long samples);
+};
+
+
+
+/*----------------------------------------------------------//
+  Клас WaveRecorder. Предназначен для записи с
+  аудиоустройства звука в формате WAVE_PCM 44100Hz 16bit mono
+  с мультибуферизацией.
+/*-----------------------------------------------------------*/
+
+#define NBUF 3	// число буферов записи/воспроизведения
+
+// Функция обратного вызова
+typedef void (*waveInProc)(DWORD pinstance,DWORD pbuffer);
+
+class TWaveRecorder:public TThread{
+private:
+	HWAVEIN hWaveIn;            // дескриптор устройства ввода
+	WAVEFORMATEX  waveFormat;   // формат звука
+	WAVEHDR WaveHdr[NBUF];      // заголовки для буферов
+    int curdata;                // текущий буфер
+    HANDLE hEvent;			    // объект-событие
+
+    void __fastcall ProcessCallback(void); // синхронизация и вызов обработчика
+    waveInProc Proc;            // Функция обратного вызова
+    DWORD pinstance;            // доп. параметр
+    bool synchronize;           // необходимость синхронизации
+public:
+	DWORD       dwDataSize;     // размер буфера данных
+    bool recording;             // состояние записи
+	TWaveRecorder(long samples,int sampleRate,
+   			waveInProc Proc_v=0,DWORD pinstance_v=0,bool synchronize_v=true);
+    virtual void __fastcall Execute();  // переопределяем базовый метод
+    void Stop();                // остановка записи
+};
+
+/*  Класс WavePlayer
+Предназначен для воспроизведения содержимого буфера
+*/
+/*
+class TWavePlayer {
+private:
+	HANDLE hData[NBUF];
+	HPSTR  lpData[NBUF];
+	HGLOBAL hWaveHdr[NBUF];
+	LPWAVEHDR lpWaveHdr[NBUF];
+	HWAVEOUT    hWaveOut;
+    WAVEFORMATEX  Format;
+    HWND hWnd;
+	DWORD       dwDataSize;
+    int curdata;
+    bool playing;
+
+public:
+	long blockSize;	// размер блока в сэмплах
+
+    void Start();
+    void Stop();
+    void AddBuffer();
+    TWavePlayer(long v_blockSize,int sampleRate,HWND hw=0);
+    ~TWavePlayer();
+    short *GetBufer();
+};
+
+//---------------------------------------------------------------------------
+*/
+#endif
+
+
+
